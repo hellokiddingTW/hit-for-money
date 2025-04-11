@@ -146,6 +146,7 @@ const InGame = () => {
     handleWinLose();
     if (gameState === "GAME_START") {
       updateCurrentPlayer();
+
     }
   }, [betAmount, gameState]);
 
