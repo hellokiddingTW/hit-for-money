@@ -1,5 +1,5 @@
 import { CardString } from "@/components/game/GameCard";
-
+import { WinResult } from "@/constants/game";
 export const calcCardPoints = (cards: CardString[]) => {
   return cards.map((card) => {
     const [, y] = card.split("");
@@ -14,23 +14,23 @@ export const calcGameBetResult = (cards: CardString[], choice?: string) => {
     const max = Math.max(p1, p3);
 
     if (p2 > min && p2 < max) {
-      return "WIN";
+      return WinResult.WIN;
     } else if (p2 === p1 || p2 === p3) {
-      return "HIT";
+      return WinResult.HIT;
     } else {
-      return "LOSE";
+      return WinResult.LOSE;
     }
   }
   // 兩張門柱牌相同的情況
   else {
     if (p2 === p1) {
-      return "SUPER_HIT"; // 撞柱，3 倍
-    } else if (choice === "high" && p2 > p1) {
-      return "WIN"; // 選 High 且射中
-    } else if (choice === "low" && p2 < p1) {
-      return "WIN"; // 選 Low 且射中
+      return WinResult.SUPER_HIT; // 撞柱，3 倍
+    } else if (choice === "up" && p2 > p1) {
+      return WinResult.WIN; // 選 High 且射中
+    } else if (choice === "down" && p2 < p1) {
+      return WinResult.WIN; // 選 Low 且射中
     } else {
-      return "LOSE"; // 不符合選擇
+      return WinResult.LOSE; // 不符合選擇
     }
   }
 };

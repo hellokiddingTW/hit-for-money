@@ -4,7 +4,7 @@ import CardHolder from "@/assets/card-holder-bg.svg?react";
 import CardBorder from "@/assets/card-border.svg?react";
 import GameCard, { CardStatus, CardString } from "@/components/game/GameCard";
 import Icon from "@/components/ui/Icon";
-import { GameState } from "@/constants/Game";
+import { GameState } from "@/constants/game";
 
 interface ICardResultProps {
   isBet: boolean;

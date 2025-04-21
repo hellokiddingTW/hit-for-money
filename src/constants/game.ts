@@ -12,3 +12,10 @@ export type GameInfo = {
   players: Player[];
   roundCards: CardString[];
 };
+
+export const  WinResult = {
+  WIN: "WIN",
+  LOSE: "LOSE",
+  HIT: "HIT",
+  SUPER_HIT: "SUPER_HIT",
+} as const

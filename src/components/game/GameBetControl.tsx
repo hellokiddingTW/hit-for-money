@@ -1,18 +1,20 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import tw, { styled } from "twin.macro";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import useAppStore from "@/stores/appStore";
-import { calcGameBetResult } from "@/utils/calcCards";
-import { CardString } from "@/components/game/GameCard";
-import { GameState } from "@/constants/Game";
+import { GameState } from "@/constants/game";
+// import { CardString } from "@/components/game/GameCard";
+
 
 interface GameBetControlProps {
-  roundCards: CardString[];
+  isBet: boolean;
+  isUpDownMode: boolean;
   betPoolAmount: number;
   onConfirmBet: (betAmount: number) => void;
+  onSelectUpDown: (selection: string) => void;
+  onClickPass: () => void;
   onHandleGameState: (gameState: GameState) => void;
 }
 
@@ -25,7 +27,7 @@ const ButtonWrapper = styled.div`
 `;
 
 const BetContainer = styled.div`
-  ${tw` w-full min-h-[30%] p-6 space-y-8 flex flex-col items-center animate-slide-in-up bg-[rgba(0,0,0,.6)] rounded-t-[2rem] absolute left-0 bottom-0`}
+  ${tw` w-full min-h-[25%] p-6 space-y-8 flex flex-col items-center animate-slide-in-up bg-[rgba(0,0,0,.6)] rounded-t-[2rem] absolute left-0 bottom-0`}
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 `;
@@ -47,7 +49,7 @@ const StyledLabel = styled(Label)`
 `;
 
 const StyledInput = styled(Input)`
-  ${tw`text-white w-[75%]`}
+  ${tw`text-white w-[75%] h-[3rem] text-[1.25rem] font-bold font-impact tracking-wide`}
 `;
 
 const InvalidateText = styled.div`
@@ -57,16 +59,31 @@ const InvalidateText = styled.div`
 `;
 
 const GameBetControl = (props: GameBetControlProps) => {
-  const { betPoolAmount, onConfirmBet, onHandleGameState } = props;
+  const {
+    betPoolAmount,
+    isBet,
+    isUpDownMode,
+    onConfirmBet,
+    onSelectUpDown,
+    onHandleGameState,
+    onClickPass,
+  } = props;
   const [isShowBetBoard, setIsShowBetBoard] = useState(false);
+  const [isShowUpDownButton, setIsShowUpDownButton] = useState(false);
   const [betValue, setBetValue] = useState<number>(0);
   const [isMaxBet, setIsMaxBet] = useState(false);
 
   const betAmount = [10, 50, 100, 500, 1000, "All", "Clear"];
 
   const handleShoot = () => {
-    setIsShowBetBoard(true);
+    setIsShowUpDownButton(isUpDownMode);
+    setIsShowBetBoard(!isUpDownMode);
     onHandleGameState("GAME_BET");
+  };
+
+  const handleSelctUpDown = (selection: string) => {
+    onSelectUpDown(selection);
+    setIsShowBetBoard(true);
   };
 
   const handleClickBadge = (amt: string | number) => {
@@ -84,10 +101,6 @@ const GameBetControl = (props: GameBetControlProps) => {
     });
   };
 
-  const handleCancel = () => {
-    setIsShowBetBoard(false);
-  };
-
   const handleConfirmBet = () => {
     onConfirmBet(betValue);
     setIsShowBetBoard(false);
@@ -102,11 +115,44 @@ const GameBetControl = (props: GameBetControlProps) => {
     setIsMaxBet(false);
   }, [betValue]);
 
+  useEffect(() => {
+    if (!isUpDownMode) setIsShowUpDownButton(false);
+  }, [isUpDownMode]);
+
   return (
     <Container>
       <ButtonWrapper>
-        <ComffirmButton>PASS</ComffirmButton>
-        <ComffirmButton onClick={handleShoot}>SHOOT</ComffirmButton>
+        {isShowUpDownButton ? (
+          <>
+            <ComffirmButton
+              disabled={isBet || isShowBetBoard}
+              onClick={() => handleSelctUpDown("down")}
+            >
+              Down
+            </ComffirmButton>
+            <ComffirmButton
+              disabled={isBet || isShowBetBoard}
+              onClick={() => handleSelctUpDown("up")}
+            >
+              Up
+            </ComffirmButton>
+          </>
+        ) : (
+          <>
+            <ComffirmButton
+              disabled={isBet || isShowBetBoard}
+              onClick={onClickPass}
+            >
+              PASS
+            </ComffirmButton>
+            <ComffirmButton
+              disabled={isBet || isShowBetBoard}
+              onClick={handleShoot}
+            >
+              SHOOT
+            </ComffirmButton>
+          </>
+        )}
       </ButtonWrapper>
       {isShowBetBoard && (
         <BetContainer>
@@ -136,12 +182,12 @@ const GameBetControl = (props: GameBetControlProps) => {
           />
           {isMaxBet && <InvalidateText>下注超過彩池金額</InvalidateText>}
           <ButtonWrapper>
-            <Button onClick={handleCancel}>取消</Button>
             <Button
               disabled={isMaxBet || betValue === 0}
               onClick={handleConfirmBet}
+              className="w-[10rem] h-[3rem] text-[1.125rem]  font-bold"
             >
-              確定
+              下注
             </Button>
           </ButtonWrapper>
         </BetContainer>

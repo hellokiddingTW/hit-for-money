@@ -1,5 +1,4 @@
 import { Player } from "@/pages/InGame";
-import React from "react";
 import tw, { styled } from "twin.macro";
 
 interface IDigiNumberBoardProps {

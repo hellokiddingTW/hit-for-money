@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import tw, { styled } from "twin.macro";
 // import GameBetPool from "@/components/game/GameBetPool";
 import FootballPitch from "@/assets/football-pitch.jpg";
 import GameResult from "@/components/game/GameResult";
 import GameDigiBoard from "@/components/game/GameDigiBoard";
-import useAppStore from "@/stores/appStore";
 import WinLoseAnimation from "@/components/animation/WinLoseAnimation";
 import GameBetControl from "@/components/game/GameBetControl";
 import { useNavigate } from "react-router-dom";
 import { useGameCards } from "@/hooks/useGame";
 import { calcGameBetResult } from "@/utils/calcCards";
 import localStorageUtil from "@/utils/localStorage";
-import { GameInfo, GameState } from "@/constants/Game";
+import { GameInfo, GameState } from "@/constants/game";
+import { WinResult } from "@/constants/game";
 
 export type Player = {
   playerName: string;
@@ -50,89 +50,89 @@ const GameContainer = styled.div`
 // };
 
 const InGame = () => {
-  const navitage = useNavigate();
-  const { cards } = useGameCards();
+  const navigate = useNavigate();
   const storedSetting = localStorageUtil.get<GameInfo>("gameInfo");
-  const [currentPlayer, setCurrentPlayer] = useState<Player>({} as Player);
-  // const [isBet, setIsBet] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
   const [gameState, setGameState] = useState("" as GameState);
   const [gameInfo, setGameInfo] = useState<GameInfo>({} as GameInfo);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdownMode, setUpdownMode] = useState(false);
+  const [playerSelected, setPlayerSelected] = useState("");
+  const [isWin, setIsWin] = useState(false);
+  const { cards, upDownMode } = useGameCards();
   const isBet = betAmount !== 0;
   const isLastPlayer = gameInfo.currentPlayerIdx === gameInfo.playerCnt - 1;
+  const currentPlayerIdx = gameInfo.currentPlayerIdx ?? 0;
+
+  const currentPlayer = useMemo(() => {
+    return gameInfo.players?.[currentPlayerIdx] ?? ({} as Player);
+  }, [gameInfo.players, currentPlayerIdx]);
+
   const gameInit = () => {
     if (storedSetting) {
-      const { gameState, players, currentPlayerIdx } = storedSetting;
-      const cp = players[currentPlayerIdx];
-      setCurrentPlayer(cp as Player);
-      setGameInfo({
-        ...storedSetting,
-      });
-      setGameState(gameState);
+      setGameInfo(storedSetting);
+      setGameState(storedSetting.gameState);
       setIsLoading(false);
-    } else navitage("/");
+    } else {
+      navigate("/");
+    }
   };
 
-  const updateCurrentPlayer = () => {
-    const cp = gameInfo.players[gameInfo.currentPlayerIdx];
-    setGameInfo((prev) => {
-      return {
-        ...prev,
-        roundCards: cards,
-      };
+  const updateGameInfo = (partial: Partial<GameInfo>) => {
+    setGameInfo((prev) => ({
+      ...prev,
+      ...partial,
+    }));
+  };
+
+  const updateNewRound = () => {
+    updateGameInfo({
+      roundCards: cards,
     });
     setBetAmount(0);
-    setCurrentPlayer(cp as Player);
+    setUpdownMode(upDownMode);
+  };
+
+  const updateCurrentIdx = () => {
+    const nextIdx = isLastPlayer ? 0 : gameInfo.currentPlayerIdx + 1;
+    updateGameInfo({ currentPlayerIdx: nextIdx });
   };
 
   const handleGameState = (newGameState: GameState) => {
-    setGameInfo((prev) => {
-      return {
-        ...prev,
-        gameState: newGameState,
-        currentPlayerIdx:
-          newGameState !== "GAME_START"
-            ? prev.currentPlayerIdx
-            : isLastPlayer
-            ? 0
-            : prev.currentPlayerIdx + 1,
-      };
-    });
+    updateGameInfo({ gameState: newGameState });
     setGameState(newGameState);
+    if (newGameState === "GAME_START") {
+      updateCurrentIdx();
+    }
   };
 
   const handleWinLose = () => {
     if (betAmount === 0 || gameState !== "GAME_RESULT") return;
-    const result = calcGameBetResult(gameInfo.roundCards);
+
+    const result = calcGameBetResult(gameInfo.roundCards, playerSelected);
     const betPoolChanges = {
       WIN: -betAmount,
       LOSE: betAmount,
       HIT: 2 * betAmount,
       SUPER_HIT: 3 * betAmount,
     };
+
     const winLoseAmt = betPoolChanges[result] || 0;
-    setGameInfo((prev) => {
-      return {
-        ...prev,
-        betPool: prev.betPool + winLoseAmt,
-        players: prev.players.map((player, idx) =>
-          idx === prev.currentPlayerIdx
-            ? {
-                ...player,
-                balance: player.balance - winLoseAmt,
-              }
-            : player
-        ),
-      };
-    });
-    setCurrentPlayer((prev) => {
-      return {
-        ...prev,
-        balance: prev.balance - winLoseAmt,
-      };
+    setIsWin(result === WinResult.WIN);
+
+    const updatedPlayers = gameInfo.players.map((player, idx) =>
+      idx === gameInfo.currentPlayerIdx
+        ? { ...player, balance: player.balance - winLoseAmt }
+        : player
+    );
+
+    updateGameInfo({
+      betPool: gameInfo.betPool + winLoseAmt,
+      players: updatedPlayers,
     });
   };
+
+  console.log(`upDownMode`, upDownMode, cards);
 
   useEffect(() => {
     gameInit();
@@ -145,10 +145,9 @@ const InGame = () => {
   useEffect(() => {
     handleWinLose();
     if (gameState === "GAME_START") {
-      updateCurrentPlayer();
-
+      updateNewRound();
     }
-  }, [betAmount, gameState]);
+  }, [betAmount, gameState, currentPlayerIdx]);
 
   return (
     <Container>
@@ -157,7 +156,6 @@ const InGame = () => {
           <div>is loading</div>
         ) : (
           <GameContainer>
-            {/* <GameBetPool /> */}
             <GameDigiBoard
               betPoolAmount={gameInfo.betPool}
               currentPlayerInfo={currentPlayer}
@@ -170,13 +168,19 @@ const InGame = () => {
               onHandleGameState={handleGameState}
             />
             <GameBetControl
-              onHandleGameState={handleGameState}
-              onConfirmBet={setBetAmount}
-              roundCards={gameInfo.roundCards}
+              isBet={isBet}
+              isUpDownMode={isUpdownMode}
               betPoolAmount={gameInfo.betPool}
+              onHandleGameState={handleGameState}
+              onSelectUpDown={setPlayerSelected}
+              onConfirmBet={setBetAmount}
+              onClickPass={updateCurrentIdx}
             />
             {gameState === "GAME_RESULT" && (
-              <WinLoseAnimation onHandleGameState={handleGameState} />
+              <WinLoseAnimation
+                onHandleGameState={handleGameState}
+                isWin={isWin}
+              />
             )}
           </GameContainer>
         )}
